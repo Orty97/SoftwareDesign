@@ -7,6 +7,7 @@ import org.lwjgl.glfw.GLFWVidMode;
 
 import front.rendering.Renderer;
 import front.rendering.Window;
+import front.rendering.fonts.Font;
 
 public class Launch {
 	private static Window runningWindow;
@@ -15,6 +16,9 @@ public class Launch {
 	public static int MONITOR_HEIGHT;
 	
 	public static void main(String args[]) {
+		
+		new Font();
+		
 		if(!glfwInit()) {
 			System.err.println("Failed to initialize GLFW, app will abort!");
 			System.exit(1);
