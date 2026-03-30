@@ -263,7 +263,6 @@ public class Font {
 			        }
 			    }
 			    glyphs.put(unicode,temp_glyphs[glyphIndex]);
-			    System.out.println(String.format("U+%04X '%c' -> glyph %d", unicode, (char)unicode, glyphIndex));
 			}			
 		} catch (IOException e){e.printStackTrace();}
 	}	
