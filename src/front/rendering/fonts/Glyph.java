@@ -1,5 +1,6 @@
 package front.rendering.fonts;
 
+import org.joml.Vector2f;
 import org.joml.Vector2i;
 
 public class Glyph {
@@ -32,4 +33,52 @@ public class Glyph {
 	public boolean isComposite() {
 		return composite;
 	}	
+	
+	public boolean pointOnCurve(int point_index) {
+		return onCurve[point_index];
+	}
+
+	public int getPointsCount() {
+		return onCurve.length;
+	}
+	
+	public int getPointX(int point_index) {
+		return x[point_index];
+	}
+	
+	public int getPointY(int point_index) {
+		return y[point_index];
+	}
+	
+	public int getContoursCount() {
+		return contourEnds.length;
+	}
+	
+	public int getContourEnd(int contour_index) {
+		return contourEnds[contour_index];
+	}
+
+	public Vector2i getGlyphMin() {
+		return min;
+	}
+	
+	public Vector2i getGlyphMax() {
+		return max;
+	}
+
+	public float getGlyphScale() {
+		float glyphWidth = max.x - min.x;
+		float glyphHeight = max.y - max.y;
+		
+		float scaleX = 2.0f / glyphWidth;
+		float scaleY = 2.0f / glyphHeight;
+		
+		return Math.min(scaleX,scaleY);
+	}
+	
+	public Vector2f getGlyphOffset() {
+		float xOffset = -(min.x + (max.x - min.x) / 2) * getGlyphScale();
+		float yOffset = -(min.y + (max.y - min.x) / 2) * getGlyphScale();
+		return new Vector2f(xOffset,yOffset);
+	}
 }

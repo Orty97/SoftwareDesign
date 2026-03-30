@@ -38,7 +38,7 @@ public class Window {
 		return title;
 	}
 	
-	protected long getWindowId() {
+	public long getWindowId() {
 		return windowId;
 	}
 }
