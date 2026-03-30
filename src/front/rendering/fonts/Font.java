@@ -12,17 +12,15 @@ import front.util.FileReadHelper;
 public class Font {
 	
 	private final HashMap<Integer,Glyph> glyphs = new HashMap<Integer,Glyph>();
-	
-	
+		
 	@SuppressWarnings("unused")
 	public Font() {
 		//TODO: generalize the hardcoded partition / OS folder
 		File font = new File("C:\\Windows\\Fonts\\segoeui.ttf");
 		
 		HashMap<String,FontTableMetaData> fontTablesMetaData =
-				new HashMap<String,FontTableMetaData>();
-		HashMap<Integer,Glyph> simpleGlyphs = new HashMap<Integer,Glyph>();		
-		Glyph[] glyphs;
+				new HashMap<String,FontTableMetaData>();	
+		Glyph[] temp_glyphs;
 		
 		short v_major;
 		short v_minor;
@@ -81,7 +79,7 @@ public class Font {
 			    }
 			}
 			
-			glyphs = new Glyph[numGlyphs];
+			temp_glyphs = new Glyph[numGlyphs];
 			
 			tableMetaData = fontTablesMetaData.get("glyf");
 			
@@ -171,7 +169,7 @@ public class Font {
 						currentY += dy;
 						y[p] = currentY;
 					}
-					glyphs[i] = new Glyph(false,minX,maxX,minY,maxY,onCurveFlags,x,y,contourEnds);
+					temp_glyphs[i] = new Glyph(false,minX,maxX,minY,maxY,onCurveFlags,x,y,contourEnds);
 				}
 			}
 			
@@ -264,10 +262,15 @@ public class Font {
 			            fontStream.getChannel().position(posBefore);
 			        }
 			    }
-			    simpleGlyphs.put(unicode,glyphs[glyphIndex]);
+			    glyphs.put(unicode,temp_glyphs[glyphIndex]);
+			    System.out.println(String.format("U+%04X '%c' -> glyph %d", unicode, (char)unicode, glyphIndex));
 			}			
 		} catch (IOException e){e.printStackTrace();}
 	}	
+	
+	public final Glyph getGlyph(int unicode) {
+		return glyphs.get(unicode);
+	}
 	
 	public class PointFlags{
 		public static final byte ON_CURVE = 0x01;

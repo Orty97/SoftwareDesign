@@ -17,8 +17,8 @@ public class Launch {
 	
 	public static void main(String args[]) {
 		
-		new Font();
-		
+		Font testFont = new Font();
+				
 		if(!glfwInit()) {
 			System.err.println("Failed to initialize GLFW, app will abort!");
 			System.exit(1);
