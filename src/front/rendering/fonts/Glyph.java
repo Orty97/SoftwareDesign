@@ -57,6 +57,10 @@ public class Glyph {
 	public int getContourEnd(int contour_index) {
 		return contourEnds[contour_index];
 	}
+	
+	public int getContourStart(int contour_index) {
+		return contour_index == 0 ? 0 : contourEnds[contour_index - 1] +1;
+	}
 
 	public Vector2i getGlyphMin() {
 		return min;
@@ -68,7 +72,7 @@ public class Glyph {
 
 	public float getGlyphScale() {
 		float glyphWidth = max.x - min.x;
-		float glyphHeight = max.y - max.y;
+		float glyphHeight = max.y - min.y;
 		
 		float scaleX = 2.0f / glyphWidth;
 		float scaleY = 2.0f / glyphHeight;
