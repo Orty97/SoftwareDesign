@@ -1,7 +1,9 @@
 package front.util;
 
+import java.io.BufferedReader;
 import java.io.EOFException;
 import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -53,6 +55,23 @@ public class FileReadHelper {
 	    if ((b1 | b2 | b3 | b4) < 0) throw new EOFException();
 
 	    return (b1 << 24) | (b2 << 16) | (b3 << 8) | b4;
+	}
+
+	public static String loadShaderCode(String shader_code_path) {
+		StringBuilder sourceBuilder = new StringBuilder();
+		
+		try {
+			BufferedReader reader = new BufferedReader(new FileReader(shader_code_path));
+			String line;
+			
+			while((line = reader.readLine())!=null)
+				sourceBuilder.append(line).append("\n");
+			
+			reader.close();
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		return sourceBuilder.toString();
 	}
 	
 }
