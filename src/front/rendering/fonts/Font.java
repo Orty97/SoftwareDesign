@@ -13,7 +13,10 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+
+import org.joml.Vector2i;
 
 import org.lwjgl.BufferUtils;
 
@@ -192,7 +195,8 @@ public class Font {
 								currentY += dy;
 								y[p] = currentY;
 							}
-							temp_glyphs[i] = new Glyph(false,minX,maxX,minY,maxY,onCurveFlags,x,y,contourEnds);
+							
+							temp_glyphs[i] = createFinalGlyph(false,minX,maxX,minY,maxY,onCurveFlags,x,y,contourEnds);
 						}
 					}
 					
@@ -290,6 +294,70 @@ public class Font {
 				} catch (IOException e){e.printStackTrace();}
 	}
 	
+	private final Glyph createFinalGlyph(boolean composite, int min_x, int max_x, 
+										 int min_y, int max_y,
+										 boolean[] on_curve, int[] x, int[] y,
+										 int[] contour_ends) {
+		
+		int contoursCount = contour_ends.length;
+		ArrayList<Vector2i> finalGlyphPoints = new ArrayList<>();
+		ArrayList<Boolean> finalGlyphFlags = new ArrayList<>();
+		
+		for(int contour = 0; contour < contoursCount; contour++) {
+			int contourImplicitPoints = 0;
+			int contourEnd = contour_ends[contour];
+			int contourStart;
+			
+			if(contour == 0) 
+				contourStart = 0;
+			else
+				contourStart = contour_ends[contour - 1] + 1;
+			
+			for(int point = contourStart; point <= contourEnd; point++) {
+				if(point == contourStart && !on_curve[contourStart]) {
+					finalGlyphPoints.add(new Vector2i((x[point]+x[contourEnd])/2,
+													  (y[point]+y[contourEnd])/2));
+					finalGlyphFlags.add(true);
+					
+					finalGlyphPoints.add(new Vector2i(x[point],y[point]));
+					finalGlyphFlags.add(false);
+					contourImplicitPoints++;
+				}else {
+					if(on_curve[point]) {
+						finalGlyphPoints.add(new Vector2i(x[point],y[point]));
+						finalGlyphFlags.add(true);
+					}
+					else {
+						if(!on_curve[point - 1]) {
+							finalGlyphPoints.add(new Vector2i((x[point] + x[point - 1]) / 2,
+															  (y[point] + y[point - 1]) / 2));
+							finalGlyphFlags.add(true);
+							
+							finalGlyphPoints.add(new Vector2i(x[point],y[point]));
+							finalGlyphFlags.add(false);
+							contourImplicitPoints++;
+						}else {
+							finalGlyphPoints.add(new Vector2i(x[point],y[point]));
+							finalGlyphFlags.add(false);
+						}
+					}
+				}
+			}
+			contour_ends[contour] += contourImplicitPoints;
+		}
+		int[] final_x = new int[finalGlyphPoints.size()];
+		int[] final_y = new int[finalGlyphPoints.size()];
+		boolean[] final_flags = new boolean[finalGlyphPoints.size()];
+		
+		for(int i = 0; i < finalGlyphPoints.size();i++) {
+			final_x[i] = finalGlyphPoints.get(i).x;
+			final_y[i] = finalGlyphPoints.get(i).y;
+			final_flags[i] = finalGlyphFlags.get(i);
+		}
+		
+		return new Glyph(composite, min_x, max_x, min_y, max_y,final_flags,final_x,final_y,contour_ends);
+	}
+	
 	private final void populateFontSSBOs() {
 		int totalPointsCount = 0;
 		int totalContoursCount = 0;
@@ -356,8 +424,7 @@ public class Font {
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER,2,glyphsBuffer);
 		
 	}
-	
-	
+		
 	public final Glyph getGlyph(int unicode) {
 		return glyphs.get(unicode);
 	}
