@@ -1,7 +1,7 @@
 package front.rendering.fonts.meta_data;
 
-import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 
 public class FontMetaData {
 
@@ -14,13 +14,13 @@ public class FontMetaData {
 	public int entrySelector;
 	public int rangeShift;
 	
-	public FontMetaData(DataInputStream font_file_stream) throws IOException {
-		scalerType = font_file_stream.readInt();
-		numTables = font_file_stream.readUnsignedShort();
+	public FontMetaData(RandomAccessFile font_file) throws IOException {
+		scalerType = font_file.readInt();
+		numTables = font_file.readUnsignedShort();
 		
-		searchRange = font_file_stream.readUnsignedShort();
-		entrySelector = font_file_stream.readUnsignedShort();
-		rangeShift = font_file_stream.readUnsignedShort();
+		searchRange = font_file.readUnsignedShort();
+		entrySelector = font_file.readUnsignedShort();
+		rangeShift = font_file.readUnsignedShort();
 	}
 	
 }

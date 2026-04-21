@@ -7,11 +7,11 @@ import static org.lwjgl.opengl.GL15.glGenBuffers;
 import static org.lwjgl.opengl.GL30.glBindBufferBase;
 import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER;
 
-import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -69,7 +69,7 @@ public class Font_Old {
 			FontTableMetaData tableMetaData;
 
 			for (int i = 0; i < tables; i++) {
-				tableMetaData = new FontTableMetaData(new DataInputStream(fontStream));
+				tableMetaData = new FontTableMetaData(new RandomAccessFile("","r"));
 				byte[] tagBytes = new byte[4];
 				int bytesRead = 0;
 				while (bytesRead < 4) {
