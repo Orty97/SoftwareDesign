@@ -7,6 +7,7 @@ import static org.lwjgl.opengl.GL15.glGenBuffers;
 import static org.lwjgl.opengl.GL30.glBindBufferBase;
 import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER;
 
+import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -20,9 +21,10 @@ import org.joml.Vector2i;
 
 import org.lwjgl.BufferUtils;
 
+import front.rendering.fonts.meta_data.FontTableMetaData;
 import front.util.FileReadHelper;
 
-public class Font {
+public class Font_Old {
 
 	private final HashMap<Integer, Glyph> glyphs = new HashMap<Integer, Glyph>();
 	private final HashMap<Integer, Integer> unicodeToGlyphIndex = new HashMap<Integer, Integer>();
@@ -31,19 +33,19 @@ public class Font {
 	private final int contoursBuffer;
 	private final int pointsBuffer;
 
-	public Font() {
+	public Font_Old() {
 		readGlyphs();
 		glyphsBuffer = glGenBuffers();
 		contoursBuffer = glGenBuffers();
 		pointsBuffer = glGenBuffers();
 		populateFontSSBOs();
-	}
+	}	
 
 	@SuppressWarnings("unused")
 	private final void readGlyphs() {
 		// TODO: generalize the hardcoded partition / OS folder
 		File font = new File("C:\\Windows\\Fonts\\times.ttf");
-
+		
 		HashMap<String, FontTableMetaData> fontTablesMetaData = new HashMap<String, FontTableMetaData>();
 		Glyph[] temp_glyphs;
 
@@ -67,7 +69,7 @@ public class Font {
 			FontTableMetaData tableMetaData;
 
 			for (int i = 0; i < tables; i++) {
-				tableMetaData = new FontTableMetaData();
+				tableMetaData = new FontTableMetaData(new DataInputStream(fontStream));
 				byte[] tagBytes = new byte[4];
 				int bytesRead = 0;
 				while (bytesRead < 4) {
@@ -223,7 +225,7 @@ public class Font {
 					encodingsChecked++;
 			}
 
-			if (encodingFound = false)
+			if (encodingFound == false)
 				throw new IOException();
 
 			fontStream.getChannel().position(tableMetaData.offset + offset);
