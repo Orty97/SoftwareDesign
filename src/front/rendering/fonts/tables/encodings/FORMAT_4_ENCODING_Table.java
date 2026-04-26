@@ -56,7 +56,7 @@ public class FORMAT_4_ENCODING_Table {
 		for(int s = 0; s < segCount; s++)
 			idRangeOffset[s] = font_file.readUnsignedShort();
 		
-		int remainingShorts = (int) (offset + length - font_file.getChannel().position());
+		int remainingShorts = (int) (offset + length - font_file.getChannel().position())/2;
 		glyphIdArray = new int[remainingShorts];
 		for(int s = 0; s < remainingShorts; s++)
 			glyphIdArray[s] = font_file.readUnsignedShort();

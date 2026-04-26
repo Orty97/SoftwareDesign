@@ -23,9 +23,9 @@ public class Launch {
 	public static void main(String args[]) throws IOException {
 
 		FontParser.parseFontFile("C:\\Windows\\Fonts\\seguiemj.ttf");
-		System.in.read();
-		FontParser.parseFontFile("C:\\Windows\\Fonts\\segoeui.ttf");
-		
+//		System.in.read();
+//		FontParser.parseFontFile("C:\\Windows\\Fonts\\segoeui.ttf");
+//		
 //		if (!glfwInit()) {
 //			System.err.println("Failed to initialize GLFW, app will abort!");
 //			System.exit(1);
