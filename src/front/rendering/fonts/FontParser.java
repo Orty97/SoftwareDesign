@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.joml.Matrix3f;
+import org.joml.Vector2i;
 
 import front.rendering.fonts.meta_data.FontMetaData;
 import front.rendering.fonts.meta_data.FontTableMetaData;
@@ -21,10 +22,10 @@ import front.rendering.fonts.tables.encodings.FORMAT_4_ENCODING_Table;
 	
 public class FontParser {
 	
-	private static final HashMap<Integer,GlyphInstanceRange> glyphInstanceRanges = new HashMap<>();
-	private static final ArrayList<GlyphInstance> finalGlyphInstances = new ArrayList<>();
+	public static final HashMap<Integer,GlyphInstanceRange> glyphInstanceRanges = new HashMap<>();
+	public static final ArrayList<GlyphInstance> finalGlyphInstances = new ArrayList<>();
 	
-	private static final class GlyphInstance{
+	public static final class GlyphInstance{
 		public Matrix3f transform;
 		public GlyphGeometry geometry;
 		
@@ -33,7 +34,7 @@ public class FontParser {
 			this.transform = transform;
 		}
 	}
-	private static final class GlyphInstanceRange{
+	public static final class GlyphInstanceRange{
 		public int startIndex;
 		public int length;
 		public GlyphInstanceRange(int start_index,int length) {
@@ -42,8 +43,8 @@ public class FontParser {
 		}
 	}
 	
-	private static final HashMap<Integer,UnresolvedCompoundGlyph> unresolvedCompounds = new HashMap<>();
-	private static final class UnresolvedCompoundGlyph{
+	public static final HashMap<Integer,UnresolvedCompoundGlyph> unresolvedCompounds = new HashMap<>();
+	public static final class UnresolvedCompoundGlyph{
 		public int[] childrenIds;
 		Matrix3f[] transforms;
 		int[] pMatchPairs;
@@ -55,11 +56,12 @@ public class FontParser {
 		}
 	}
 	
-	public static final void parseFontFile(String font_path) {
+	@SuppressWarnings("unused")
+	public static final Font parseFontFile(String font_path) {
 			try {
 				RandomAccessFile fontFile = new RandomAccessFile(font_path,"r");
 				FontMetaData fontMetaData = new FontMetaData(fontFile);
-				
+								
 				HashMap<String,FontTableMetaData> fontTableMetaDatas = new HashMap<>();
 				HashMap<Integer,Integer> unicodeGlyphIdMap = new HashMap<Integer,Integer>();
 										
@@ -76,7 +78,7 @@ public class FontParser {
 				HEAD_Table headTable = new HEAD_Table(fontFile,fontTableMetaDatas.get(FontTableTags.head.toString()).offset);
 				MAXP_Table maxpTable = new MAXP_Table(fontFile,fontTableMetaDatas.get(FontTableTags.maxp.toString()).offset);
 				CMAP_Table cmapTable = new CMAP_Table(fontFile,fontTableMetaDatas.get(FontTableTags.cmap.toString()).offset);
-						
+									
 				Encoding targetEncoding = selectBestEncoding(cmapTable);
 				
 				if(targetEncoding == null) {
@@ -124,13 +126,12 @@ public class FontParser {
 				}
 				
 				LOCA_Table locaTable = new LOCA_Table(fontFile,fontTableMetaDatas.get(FontTableTags.loca.toString()).offset,
-													  unicodeGlyphIdMap,headTable.indexToLocFormat == 0);
+													  maxpTable.numGlyphs,unicodeGlyphIdMap,headTable.indexToLocFormat == 0);
 							
 				byte[] glyfRecord = new byte[(int) locaTable.maxGlyfRecordLength];
-																		
-				for(int unicode : unicodeGlyphIdMap.keySet()) {
-					int glyphId = unicodeGlyphIdMap.get(unicode);
-						
+														
+				for(int glyphId : locaTable.getGlyphIdSet()) {
+					
 					long glyphGeometryStartOffset = locaTable.getGlyphStartPoint(glyphId);
 					long glyphGeometryPointsLength = locaTable.getGlyphPointsLength(glyphId);
 					
@@ -157,7 +158,7 @@ public class FontParser {
 					if(numberOfContours < 0) {
 						ArrayList<Integer> pMatchPairsArray = new ArrayList<Integer>();
 						ArrayList<Matrix3f> transforms = new ArrayList<>();
-						ArrayList<Integer> children = new ArrayList<>();
+						ArrayList<Integer> children = new ArrayList<Integer>();
 						
 						boolean hasInstructions;
 						boolean moreComponents;
@@ -202,20 +203,21 @@ public class FontParser {
 						    	transform.m11 = glyfRecordBuffer.getShort() / 16384.0f;
 						    }
 						    transforms.add(transform);
-						    children.add(glyphIndex);						    
+						    children.add(glyphIndex);		    
 						    hasInstructions = (flags & CompoundGlyfFlagMasks.WE_HAVE_INSTRUCTIONS)!=0;    
 						    moreComponents = (flags & CompoundGlyfFlagMasks.MORE_COMPONENTS) != 0;
+						    
 						} while (moreComponents);
 						
 						if (hasInstructions) {
 						    int instructionLength = glyfRecordBuffer.getShort() & 0xFFFF;
 						    glyfRecordBuffer.position(glyfRecordBuffer.position() + instructionLength);
 						}
-						
 						unresolvedCompounds.put(glyphId,new UnresolvedCompoundGlyph(children.stream().mapToInt(Integer::intValue).toArray(),
 																					transforms.toArray(new Matrix3f[0]),
+											
 																					pMatchPairsArray.stream().mapToInt(Integer::intValue).toArray()));
-					//Simple glyph
+						//Simple glyph
 					}else {
 						int[] endPointsOfContours = new int[numberOfContours];
 						for(int i =0; i < numberOfContours; i++)
@@ -310,17 +312,114 @@ public class FontParser {
 						    contourInfo[i*2+1] = end - start + 1;
 						}
 						int instanceRangeStart = finalGlyphInstances.size();
-						finalGlyphInstances.add(new GlyphInstance(new Matrix3f(),new GlyphGeometry(pointDataGlyph,contourInfo)));
-						glyphInstanceRanges.put(glyphId,new GlyphInstanceRange(instanceRangeStart,1));					
+						finalGlyphInstances.add(new GlyphInstance(new Matrix3f(),new GlyphGeometry(pointDataGlyph,contourInfo,onCurvePoint)));
+						glyphInstanceRanges.put(glyphId,new GlyphInstanceRange(instanceRangeStart,1));
 					}
-				}			
-				solveCompoundGlyphs();				
-				fontFile.close();
-			}catch(Exception e) {e.printStackTrace();}
+				}
+			
+				for(int glyphId : unresolvedCompounds.keySet()) {
+					solveCompoundGlyph(glyphId);
+				}
+				
+				HashMap<Integer,GlyphInstanceRange> unicodeRanges = new HashMap<Integer,GlyphInstanceRange>();
+				ArrayList<GlyphInstance> neededInstances = new ArrayList<GlyphInstance>();
+								
+				for(int unicode : unicodeGlyphIdMap.keySet()) {
+					
+					int glyphID = unicodeGlyphIdMap.get(unicode);
+					GlyphInstanceRange unicodeInstanceRange = glyphInstanceRanges.get(glyphID);
+
+					if(unicodeInstanceRange == null)
+						continue;
+					
+					int startRange = neededInstances.size();
+					
+					for(int i = 0; i < unicodeInstanceRange.length; i++)
+						neededInstances.add(finalGlyphInstances.get(unicodeInstanceRange.startIndex + i));
+					
+					unicodeRanges.put(unicode,new GlyphInstanceRange(startRange,unicodeInstanceRange.length));
+				}
+				
+				Matrix3f fontToNDC = computeFontNDCProjection(headTable);
+				fontFile.close();				
+				return new Font(fontToNDC,unicodeRanges,neededInstances);
+			}catch(Exception e) {e.printStackTrace();return null;}
 		}	
 	
-	private static final void solveCompoundGlyphs() {
+	private static final Matrix3f computeFontNDCProjection(HEAD_Table head_table) {
+		float centerX = (head_table.xMin + head_table.xMax) * 0.5f;
+		float centerY = (head_table.yMin + head_table.yMax) * 0.5f;
 		
+		float width  = head_table.xMax - head_table.xMin;
+		float height = head_table.yMax - head_table.yMin;
+
+		float scale = 2.0f / Math.max(width, height);
+		
+		Matrix3f fontToNDC = new Matrix3f().identity();
+		fontToNDC.m20 = -centerX;
+		fontToNDC.m21 = -centerY;
+		fontToNDC.scale(scale);
+		return fontToNDC;
+	}
+	
+	private static final void solveCompoundGlyph(int glyph_id) {
+		if (glyphInstanceRanges.containsKey(glyph_id))
+		    return;
+		
+		UnresolvedCompoundGlyph unresolvedGlyph = unresolvedCompounds.get(glyph_id);
+		int instanceStartIndex = finalGlyphInstances.size();
+		int instanceCount = 0;
+		
+		int childrenCount =  unresolvedGlyph.childrenIds.length;
+		for (int i = 0; i < childrenCount; i++) {
+			int childGlyphId = unresolvedGlyph.childrenIds[i];
+			solveCompoundGlyph(childGlyphId);
+			
+			if(unresolvedGlyph.pMatchPairs[i*2] != -1) {
+				Vector2i parentPoint, childPoint, delta;
+				
+				if(i == 0) {
+					childPoint = getCachedGlyphPoint(unresolvedGlyph.pMatchPairs[i*2+1],childGlyphId);
+					delta = new Vector2i(-childPoint.x,-childPoint.y);				
+					System.out.println(delta);
+				}else {
+					System.out.println("normal translation computation");
+					//TODO:explicit parent point -> compute normal translation from child point to parent point
+				}
+				//TODO:override the Unresolved Glyph transform field with propper translation;
+			}
+			
+			GlyphInstanceRange subglyphInstanceRange = glyphInstanceRanges.get(childGlyphId);
+			
+			for(int j = 0; j < subglyphInstanceRange.length;j++) {
+				instanceCount++;
+				Matrix3f subglyphInstanceTransform = new Matrix3f(finalGlyphInstances.get(subglyphInstanceRange.startIndex + j).transform);
+				subglyphInstanceTransform = unresolvedGlyph.transforms[i].mul(subglyphInstanceTransform);
+				GlyphInstance newSubglyphInstance = new GlyphInstance(subglyphInstanceTransform,finalGlyphInstances.get(subglyphInstanceRange.startIndex + j).geometry);
+				finalGlyphInstances.add(newSubglyphInstance);	
+			}
+		}	
+		glyphInstanceRanges.put(glyph_id,new GlyphInstanceRange(instanceStartIndex,instanceCount));
+	}
+	
+	private static final Vector2i getCachedGlyphPoint(int glyph_p_index, int glyph_id) {
+		GlyphInstanceRange targetInstanceRange = glyphInstanceRanges.get(glyph_id);
+		int coveredPoints = 0;
+		
+		for(int i = 0; i < targetInstanceRange.length; i++) {
+			GlyphGeometry instanceGeometry = finalGlyphInstances.get(i).geometry;
+			int instancePointCount = instanceGeometry.pointData.length / 2;
+			if(glyph_p_index > coveredPoints + instancePointCount) {
+				coveredPoints += instancePointCount;
+				continue;
+			}else{
+				int instanceTargetPointIndex = glyph_p_index - coveredPoints;
+				int point_x = instanceGeometry.pointData[instanceTargetPointIndex*2];
+				int point_y = instanceGeometry.pointData[instanceTargetPointIndex*2+1];
+				return new Vector2i(point_x,point_y);
+			}
+		}
+		return null;
 	}
 	
 	private static final Encoding selectBestEncoding(CMAP_Table cmap_table) {

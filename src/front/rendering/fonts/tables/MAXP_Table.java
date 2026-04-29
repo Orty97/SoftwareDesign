@@ -18,10 +18,9 @@ public class MAXP_Table {
 	public MAXP_Table(RandomAccessFile font_file, long offset) throws IOException {
 		font_file.seek(offset);
 		
-		version = font_file.readLong();
+		version = font_file.readInt();
 		
 		numGlyphs = font_file.readUnsignedShort();
-		
 		maxPoints = font_file.readUnsignedShort();
 		maxContours = font_file.readUnsignedShort();
 		
