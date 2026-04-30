@@ -10,6 +10,7 @@ import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
@@ -50,12 +51,8 @@ public class Font {
 					geometries.add(instance.geometry);
 				
 				if(!fontTransforms.contains(instance.transform))
-					fontTransforms.add(instance.transform.mulLocal(font_ndc_proj));
+					fontTransforms.add(font_ndc_proj);
 			}
-		}
-		
-		for(int i = 0; i < 10; i ++) {
-			System.out.println(fontTransforms.get(i));
 		}
 		
 		int cumulatedPointCount = 0;
@@ -143,18 +140,20 @@ public class Font {
 		}
 		
 		int processedUnicodeRangeCount = 0;
+		int glyphId = 0;
 		
 		for(int unicode : ranges.keySet()) {
 			GlyphInstanceRange unicodeRange = ranges.get(unicode);
 			
+			fontGlyphs.add(processedUnicodeRangeCount);	
 			for(int i = 0; i < unicodeRange.length;i++) {
 				GlyphInstance unicodeInstance = instances.get(unicodeRange.startIndex+i);
 				fontInstances.add(geometries.indexOf(unicodeInstance.geometry));
 				fontInstances.add(fontTransforms.indexOf(unicodeInstance.transform));
-			}
-			
-			fontGlyphs.add(processedUnicodeRangeCount,unicodeRange.length);			
-			unicodeToGlyphMap.put(unicode,processedUnicodeRangeCount++);
+				processedUnicodeRangeCount++;
+			}					
+			fontGlyphs.add(unicodeRange.length);
+			unicodeToGlyphMap.put(unicode,glyphId++);
 		}
 		
 		ByteBuffer pointsBuffer = BufferUtils.createByteBuffer(Integer.BYTES * fontPoints.size());
@@ -193,7 +192,7 @@ public class Font {
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, instanceSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, instancesBuffer, GL_STATIC_DRAW);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, instanceSSBO);
-		
+				
 		ByteBuffer glyphsBuffer = BufferUtils.createByteBuffer(Integer.BYTES * fontGlyphs.size());
 		for(int data : fontGlyphs)
 			glyphsBuffer.putInt(data);
@@ -205,7 +204,6 @@ public class Font {
 		
 		ByteBuffer transformsBuffer = BufferUtils.createByteBuffer(Float.BYTES * 16 * fontTransforms.size());
 		ByteBuffer matrixBuffer = BufferUtils.createByteBuffer(Float.BYTES * 16);
-		
 		for(int i = 0; i < fontTransforms.size(); i++) {
 			Matrix4f test = new Matrix4f().set(fontTransforms.get(i));
 			test.get(matrixBuffer);
@@ -217,5 +215,43 @@ public class Font {
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, transformSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, transformsBuffer, GL_STATIC_DRAW);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, transformSSBO);	
+	}
+	
+	public static void checkContinuityFlat(List<Integer> data) {
+	    if (data == null || data.size() % 2 != 0) {
+	        System.out.println("List must contain (start, length) pairs.");
+	    }
+
+	    for (int i = 0; i < data.size(); i += 2) {
+	        int start = data.get(i);
+	        int length = data.get(i + 1);
+
+	        if (length <= 0) {
+	        	 System.out.println("Invalid length at pair " + (i / 2));
+	        }
+
+	        int expectedStart;
+
+	        if (i == 0) {
+	            // first entry defines baseline only
+	            expectedStart = start;
+	        } else {
+	            int prevStart = data.get(i - 2);
+	            int prevLen = data.get(i - 1);
+
+	            int prevEnd = prevStart + prevLen;
+
+	            expectedStart = prevEnd;
+
+	            if (start != expectedStart) {
+	            	 System.out.println(
+	                    "Discontinuity at pair " + (i / 2) +
+	                    " | start=" + start +
+	                    " expected=" + expectedStart +
+	                    " (prev end=" + prevEnd + ")"
+	                );
+	            }
+	        }
+	    }
 	}
 }

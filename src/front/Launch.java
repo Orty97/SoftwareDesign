@@ -3,8 +3,6 @@ package front;
 import static org.lwjgl.glfw.GLFW.glfwInit;
 import static org.lwjgl.opengl.GL11.GL_LINE_STRIP;
 import static org.lwjgl.opengl.GL11.glDrawArrays;
-import static org.lwjgl.opengl.GL20.glGetProgramInfoLog;
-import static org.lwjgl.opengl.GL20.glGetShaderInfoLog;
 import static org.lwjgl.opengl.GL30.glBindVertexArray;
 
 import java.io.IOException;
@@ -33,15 +31,11 @@ public class Launch {
 
 	private static int glyphEdgeSSBO;
 	private static int tesselationLevel = 10;
-
-	private static int GLYPH_UNICODE = 0x43;
 	
 	public static int DONUT_GLYPH_ID = 0;
 	
 	public static void main(String args[]) throws IOException {
 
-//		FontParser.parseFontFile("C:\\Windows\\Fonts\\seguiemj.ttf");
-//		System.in.read();
 		if (!glfwInit()) {
 			System.err.println("Failed to initialize GLFW, app will abort!");
 			System.exit(1);
@@ -61,20 +55,7 @@ public class Launch {
 		Font font = FontParser.parseFontFile("C:\\Windows\\Fonts\\segoeui.ttf");
 				
 		GLFW.glfwSetKeyCallback(runningWindow.getWindowId(),(window,key,scan,action,mods)->{
-			
-			
-			if(key == GLFW.GLFW_KEY_D && action == GLFW.GLFW_PRESS) {
-				GLYPH_UNICODE += 1;
-				if(GLYPH_UNICODE > 0x7E)
-					GLYPH_UNICODE = 0x7E;
-			}
-			
-			if(key == GLFW.GLFW_KEY_A && action == GLFW.GLFW_PRESS) {
-				GLYPH_UNICODE -= 1;
-				if(GLYPH_UNICODE < 0x20)
-					GLYPH_UNICODE = 0x20;
-			}
-			
+						
 			if(key == GLFW.GLFW_KEY_RIGHT && action == GLFW.GLFW_PRESS) {
 				DONUT_GLYPH_ID++;
 				if(DONUT_GLYPH_ID > 2409)
@@ -86,8 +67,19 @@ public class Launch {
 				if(DONUT_GLYPH_ID < 0)
 					DONUT_GLYPH_ID = 0;
 			}
+			
+			if(key >= GLFW.GLFW_KEY_A && key <= GLFW.GLFW_KEY_Z && action == GLFW.GLFW_PRESS) {
+				if(mods == GLFW.GLFW_MOD_SHIFT)
+					DONUT_GLYPH_ID = font.unicodeToGlyphMap.get(key - GLFW.GLFW_KEY_A + 'A');
+				else
+					DONUT_GLYPH_ID = font.unicodeToGlyphMap.get(key - GLFW.GLFW_KEY_A + 'a');
+			}
+			
+			if(key >= GLFW.GLFW_KEY_0 && key <= GLFW.GLFW_KEY_9 && action == GLFW.GLFW_PRESS) {
+				DONUT_GLYPH_ID = font.unicodeToGlyphMap.get(key - GLFW.GLFW_KEY_0 + '0');
+			}
 		});
-				
+
 		int shaderProgram = GL20.glCreateProgram();
 		
 		int vertexShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
@@ -104,20 +96,34 @@ public class Launch {
 
 		GL20.glLinkProgram(shaderProgram);
 		GL20.glValidateProgram(shaderProgram);
-	
-		System.out.println(glGetProgramInfoLog(shaderProgram));
-		System.out.println(glGetShaderInfoLog(vertexShader));
-		System.out.println(glGetShaderInfoLog(fragmentShader));
 		
-		int geometryUniformLocation = GL30.glGetUniformLocation(shaderProgram,"u_target_geometry");
+		int geometryUniformLocation = GL30.glGetUniformLocation(shaderProgram,"u_target_glyph");
 		
-		while (runningWindow != null) {		
+		long currentTime = System.currentTimeMillis();
+		long measuredTime;
+		long deltaTime = 0;;
+		
+		while (runningWindow != null) {
+			measuredTime = System.currentTimeMillis();
+			deltaTime += measuredTime - currentTime;
+			currentTime = measuredTime;
+			
+//			if(deltaTime >= 50) {
+//				DONUT_GLYPH_ID +=1;
+//				deltaTime -= 50;
+//				if(DONUT_GLYPH_ID >= 5499)
+//					DONUT_GLYPH_ID = 0;
+//			}
+			
+			
 			GLFW.glfwPollEvents();
 			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
 			
 			GL20.glUseProgram(shaderProgram);
 			
 			glBindVertexArray(0);
+			
+			
 			
 			GL30.glUniform1ui(geometryUniformLocation,DONUT_GLYPH_ID);
 			glDrawArrays(GL_LINE_STRIP, 0, 3000);

@@ -14,7 +14,7 @@ public class LOCA_Table {
 	
 	public long maxGlyfRecordLength = 0;
 	
-	public LOCA_Table(RandomAccessFile font_file, long table_offset,int glyph_count,HashMap<Integer,Integer> unicode_glyf_id_map, boolean short_offset) throws IOException {		
+	public LOCA_Table(RandomAccessFile font_file, long table_offset,int glyph_count, boolean short_offset) throws IOException {		
 		
 		font_file.seek(table_offset);
 		byte[] locaTableBuffer;

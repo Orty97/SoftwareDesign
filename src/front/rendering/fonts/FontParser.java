@@ -88,6 +88,7 @@ public class FontParser {
 				
 				switch(targetEncoding.format) {
 					case 4:
+						
 						FORMAT_4_ENCODING_Table formatFourEncodingTable = new FORMAT_4_ENCODING_Table(fontFile, targetEncoding.offset);
 						long segStart = targetEncoding.offset + 14; 
 						 for (int seg = 0; seg < formatFourEncodingTable.segCount; seg++) {
@@ -126,7 +127,7 @@ public class FontParser {
 				}
 				
 				LOCA_Table locaTable = new LOCA_Table(fontFile,fontTableMetaDatas.get(FontTableTags.loca.toString()).offset,
-													  maxpTable.numGlyphs,unicodeGlyphIdMap,headTable.indexToLocFormat == 0);
+													  maxpTable.numGlyphs,headTable.indexToLocFormat == 0);
 							
 				byte[] glyfRecord = new byte[(int) locaTable.maxGlyfRecordLength];
 														
@@ -327,8 +328,9 @@ public class FontParser {
 				for(int unicode : unicodeGlyphIdMap.keySet()) {
 					
 					int glyphID = unicodeGlyphIdMap.get(unicode);
+					
 					GlyphInstanceRange unicodeInstanceRange = glyphInstanceRanges.get(glyphID);
-
+					
 					if(unicodeInstanceRange == null)
 						continue;
 					
@@ -407,7 +409,7 @@ public class FontParser {
 		int coveredPoints = 0;
 		
 		for(int i = 0; i < targetInstanceRange.length; i++) {
-			GlyphGeometry instanceGeometry = finalGlyphInstances.get(i).geometry;
+			GlyphGeometry instanceGeometry = finalGlyphInstances.get(targetInstanceRange.startIndex + i).geometry;
 			int instancePointCount = instanceGeometry.pointData.length / 2;
 			if(glyph_p_index > coveredPoints + instancePointCount) {
 				coveredPoints += instancePointCount;
