@@ -10,7 +10,6 @@ import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
@@ -22,10 +21,15 @@ import front.rendering.fonts.FontParser.GlyphInstanceRange;
 
 public class Font {
 	
+	public HashMap<Integer,Integer> unicodeToGlyphIdMap = new HashMap<Integer,Integer>();
 	public HashMap<Integer,Integer> unicodeToGlyphMap = new HashMap<Integer,Integer>();
+	public HashMap<Long,GlyphKernPair> glyphKernData;
+	public int[] glyphAdvanceWidth;
 	
-	public Font(Matrix3f font_ndc_proj,HashMap<Integer,GlyphInstanceRange> ranges, ArrayList<GlyphInstance> instances) {
-		
+	public Font(Matrix3f font_ndc_proj,HashMap<Integer,GlyphInstanceRange> ranges, ArrayList<GlyphInstance> instances, HashMap<Long,GlyphKernPair> glyph_kern_data, int[] advance_width, HashMap<Integer,Integer> glyph_id_map) {
+		unicodeToGlyphIdMap = glyph_id_map;
+		glyphKernData = glyph_kern_data;
+		glyphAdvanceWidth = advance_width;
 		//Arrays that will be used in creating the SSBO's
 		
 		// All points in the font -> aranged in contours		
@@ -51,7 +55,7 @@ public class Font {
 					geometries.add(instance.geometry);
 				
 				if(!fontTransforms.contains(instance.transform))
-					fontTransforms.add(font_ndc_proj);
+					fontTransforms.add(instance.transform.mulLocal(font_ndc_proj));
 			}
 		}
 		
@@ -215,43 +219,15 @@ public class Font {
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, transformSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, transformsBuffer, GL_STATIC_DRAW);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, transformSSBO);	
+		
+		int gidH = unicodeToGlyphMap.get((int)'H');
+		int gide = unicodeToGlyphMap.get((int)'e');
+		int gidl = unicodeToGlyphMap.get((int)'l');
+		int gido = unicodeToGlyphMap.get((int)'o');
+		int gidW = unicodeToGlyphMap.get((int)'W');
 	}
-	
-	public static void checkContinuityFlat(List<Integer> data) {
-	    if (data == null || data.size() % 2 != 0) {
-	        System.out.println("List must contain (start, length) pairs.");
-	    }
 
-	    for (int i = 0; i < data.size(); i += 2) {
-	        int start = data.get(i);
-	        int length = data.get(i + 1);
-
-	        if (length <= 0) {
-	        	 System.out.println("Invalid length at pair " + (i / 2));
-	        }
-
-	        int expectedStart;
-
-	        if (i == 0) {
-	            // first entry defines baseline only
-	            expectedStart = start;
-	        } else {
-	            int prevStart = data.get(i - 2);
-	            int prevLen = data.get(i - 1);
-
-	            int prevEnd = prevStart + prevLen;
-
-	            expectedStart = prevEnd;
-
-	            if (start != expectedStart) {
-	            	 System.out.println(
-	                    "Discontinuity at pair " + (i / 2) +
-	                    " | start=" + start +
-	                    " expected=" + expectedStart +
-	                    " (prev end=" + prevEnd + ")"
-	                );
-	            }
-	        }
-	    }
+	public GlyphKernPair getGlyphPairKern(int glyph_1_id, int glyph_2_id) {
+		return glyphKernData.get(((long)glyph_1_id << 32) | (glyph_2_id & 0xFFFFFFFFL));
 	}
 }

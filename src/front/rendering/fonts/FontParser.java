@@ -14,7 +14,10 @@ import front.rendering.fonts.meta_data.FontTableMetaData;
 import front.rendering.fonts.meta_data.FontTableTags;
 import front.rendering.fonts.tables.CMAP_Table;
 import front.rendering.fonts.tables.CMAP_Table.Encoding;
+import front.rendering.fonts.tables.GPOS_Table;
 import front.rendering.fonts.tables.HEAD_Table;
+import front.rendering.fonts.tables.HHEA_Table;
+import front.rendering.fonts.tables.HMTX_Table;
 import front.rendering.fonts.tables.LOCA_Table;
 import front.rendering.fonts.tables.MAXP_Table;
 import front.rendering.fonts.tables.encodings.FORMAT_12_ENCODING_Table;
@@ -78,9 +81,12 @@ public class FontParser {
 				HEAD_Table headTable = new HEAD_Table(fontFile,fontTableMetaDatas.get(FontTableTags.head.toString()).offset);
 				MAXP_Table maxpTable = new MAXP_Table(fontFile,fontTableMetaDatas.get(FontTableTags.maxp.toString()).offset);
 				CMAP_Table cmapTable = new CMAP_Table(fontFile,fontTableMetaDatas.get(FontTableTags.cmap.toString()).offset);
-									
-				Encoding targetEncoding = selectBestEncoding(cmapTable);
+				HHEA_Table hheaTable = new HHEA_Table(fontFile,fontTableMetaDatas.get(FontTableTags.hhea.toString()).offset);
+				HMTX_Table hmtxTable = new HMTX_Table(fontFile,fontTableMetaDatas.get(FontTableTags.hmtx.toString()).offset,hheaTable.numberOfHMetrics,maxpTable.numGlyphs);
+				GPOS_Table gposTable = new GPOS_Table(fontFile,fontTableMetaDatas.get(FontTableTags.GPOS.toString()).offset);
 				
+				Encoding targetEncoding = selectBestEncoding(cmapTable);
+
 				if(targetEncoding == null) {
 					fontFile.close();
 					throw new IllegalArgumentException("Unsupported font encoding!");
@@ -343,8 +349,8 @@ public class FontParser {
 				}
 				
 				Matrix3f fontToNDC = computeFontNDCProjection(headTable);
-				fontFile.close();				
-				return new Font(fontToNDC,unicodeRanges,neededInstances);
+				fontFile.close();
+				return new Font(fontToNDC,unicodeRanges,neededInstances,gposTable.encodedKernPairs,hmtxTable.advanceWidth,unicodeGlyphIdMap);
 			}catch(Exception e) {e.printStackTrace();return null;}
 		}	
 	
@@ -382,10 +388,8 @@ public class FontParser {
 				
 				if(i == 0) {
 					childPoint = getCachedGlyphPoint(unresolvedGlyph.pMatchPairs[i*2+1],childGlyphId);
-					delta = new Vector2i(-childPoint.x,-childPoint.y);				
-					System.out.println(delta);
+					delta = new Vector2i(-childPoint.x,-childPoint.y);
 				}else {
-					System.out.println("normal translation computation");
 					//TODO:explicit parent point -> compute normal translation from child point to parent point
 				}
 				//TODO:override the Unresolved Glyph transform field with propper translation;
@@ -438,7 +442,7 @@ public class FontParser {
 			}
 			return target;
 		}
-		
+	
 	private static int getEncodingScore(Encoding e) {
 			if(e.platformID == 3 && e.encodingID == 10) {
 				if(e.format == 12)

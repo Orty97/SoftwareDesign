@@ -53,13 +53,15 @@ layout(std430, binding = 0) buffer Points {
 
 
 uniform uint u_target_glyph;
+uniform vec3 glyph_position;
+
 
 void main() {
     ivec2 glyph_instance_meta_data = glyphs.glyph_instance_indices[u_target_glyph];
     Instance_s targetInstance = instances.instance_structs[glyph_instance_meta_data.x];
 
     Geometry_s target_geometry = geometries.geometry_structs[targetInstance.geometry_index];
-    mat4 transform = transforms.transform_array[0];
+    mat4 transform = transforms.transform_array[targetInstance.transform_index];
 
     uint punctAccumulator = 0;
     int targetContour = 0;
@@ -82,7 +84,7 @@ void main() {
             }
         }
         ivec2 targetPoint = pts.points_array[target_contour.point_start_index + (gl_VertexID - pointsAccumulated)];
-        vec2 finaltargetPoint = (transform * vec4(vec2(targetPoint),0.0,1.0)).xy;
+        vec2 finaltargetPoint = (transform * vec4(vec2(targetPoint + glyph_position.xy),0.0,1.0)).xy;
         gl_Position = vec4(finaltargetPoint.xy, 0.0, 1.0);
     }
 }

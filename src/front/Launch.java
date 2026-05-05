@@ -7,6 +7,8 @@ import static org.lwjgl.opengl.GL30.glBindVertexArray;
 
 import java.io.IOException;
 
+import org.joml.Vector3f;
+
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWVidMode;
 import org.lwjgl.opengl.GL;
@@ -34,6 +36,11 @@ public class Launch {
 	
 	public static int DONUT_GLYPH_ID = 0;
 	
+	static String testText = "";
+	
+	static float start_cursor_delta = 0;
+	static float max_cursor_delta = 0;
+	
 	public static void main(String args[]) throws IOException {
 
 		if (!glfwInit()) {
@@ -52,32 +59,34 @@ public class Launch {
 		GLFW.glfwMakeContextCurrent(runningWindow.getWindowId());
 		GL.createCapabilities();
 		
-		Font font = FontParser.parseFontFile("C:\\Windows\\Fonts\\segoeui.ttf");
-				
+		Font font = FontParser.parseFontFile("C:\\Windows\\Fonts\\calibri.ttf");
+	
 		GLFW.glfwSetKeyCallback(runningWindow.getWindowId(),(window,key,scan,action,mods)->{
-						
-			if(key == GLFW.GLFW_KEY_RIGHT && action == GLFW.GLFW_PRESS) {
-				DONUT_GLYPH_ID++;
-				if(DONUT_GLYPH_ID > 2409)
-					DONUT_GLYPH_ID = 2409;
-			}
-			
-			if(key == GLFW.GLFW_KEY_LEFT && action == GLFW.GLFW_PRESS) {
-				DONUT_GLYPH_ID--;
-				if(DONUT_GLYPH_ID < 0)
-					DONUT_GLYPH_ID = 0;
-			}
-			
 			if(key >= GLFW.GLFW_KEY_A && key <= GLFW.GLFW_KEY_Z && action == GLFW.GLFW_PRESS) {
-				if(mods == GLFW.GLFW_MOD_SHIFT)
-					DONUT_GLYPH_ID = font.unicodeToGlyphMap.get(key - GLFW.GLFW_KEY_A + 'A');
-				else
-					DONUT_GLYPH_ID = font.unicodeToGlyphMap.get(key - GLFW.GLFW_KEY_A + 'a');
-			}
+				if(mods == GLFW.GLFW_MOD_SHIFT) {
+					testText += (char)(key - GLFW.GLFW_KEY_A + 'A');
+					max_cursor_delta += font.glyphAdvanceWidth[font.unicodeToGlyphIdMap.get((key - GLFW.GLFW_KEY_A + 'A'))];
+				}
+				else {
+					testText += (char)(key - GLFW.GLFW_KEY_A + 'a');
+					max_cursor_delta += font.glyphAdvanceWidth[font.unicodeToGlyphIdMap.get((key - GLFW.GLFW_KEY_A + 'a'))];
+				}
+		}
+		
+		if(key == GLFW.GLFW_KEY_SPACE && action == GLFW.GLFW_PRESS) {
+			testText+=(char)(' ');
 			
-			if(key >= GLFW.GLFW_KEY_0 && key <= GLFW.GLFW_KEY_9 && action == GLFW.GLFW_PRESS) {
-				DONUT_GLYPH_ID = font.unicodeToGlyphMap.get(key - GLFW.GLFW_KEY_0 + '0');
-			}
+		}
+		
+		if(key == GLFW.GLFW_KEY_BACKSPACE && action == GLFW.GLFW_PRESS) {
+			max_cursor_delta -= font.glyphAdvanceWidth[font.unicodeToGlyphIdMap.get((int)(testText.charAt(testText.length()-1)))];
+			testText = testText.substring(0,testText.length()-1);
+		}
+		
+		if(key >= GLFW.GLFW_KEY_0 && key <= GLFW.GLFW_KEY_9 && action == GLFW.GLFW_PRESS) {
+			testText += (char)(key - GLFW.GLFW_KEY_0 + '0');
+		}		
+			
 		});
 
 		int shaderProgram = GL20.glCreateProgram();
@@ -98,24 +107,16 @@ public class Launch {
 		GL20.glValidateProgram(shaderProgram);
 		
 		int geometryUniformLocation = GL30.glGetUniformLocation(shaderProgram,"u_target_glyph");
+		int glyphPositionUniformLocation = GL30.glGetUniformLocation(shaderProgram,"glyph_position");
 		
-		long currentTime = System.currentTimeMillis();
-		long measuredTime;
-		long deltaTime = 0;;
 		
+		Vector3f cursor = new Vector3f(0,0,0);		
+
+		
+		float start_cursor_update = +20;
+		
+
 		while (runningWindow != null) {
-			measuredTime = System.currentTimeMillis();
-			deltaTime += measuredTime - currentTime;
-			currentTime = measuredTime;
-			
-//			if(deltaTime >= 50) {
-//				DONUT_GLYPH_ID +=1;
-//				deltaTime -= 50;
-//				if(DONUT_GLYPH_ID >= 5499)
-//					DONUT_GLYPH_ID = 0;
-//			}
-			
-			
 			GLFW.glfwPollEvents();
 			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
 			
@@ -123,10 +124,24 @@ public class Launch {
 			
 			glBindVertexArray(0);
 			
+			cursor = new Vector3f(start_cursor_delta,0f,0f);
 			
+			for(char c : testText.toCharArray()) {
+				if(font.unicodeToGlyphMap.get((int)c) == null) {
+					cursor.x += font.glyphAdvanceWidth[font.unicodeToGlyphIdMap.get((int)c)];
+					continue;
+				}
+				GL30.glUniform3f(glyphPositionUniformLocation,cursor.x,cursor.y,cursor.z);
+				GL30.glUniform1ui(geometryUniformLocation,font.unicodeToGlyphMap.get((int)c));
+				glDrawArrays(GL_LINE_STRIP, 0, 3000);
+				cursor.x += font.glyphAdvanceWidth[font.unicodeToGlyphIdMap.get((int)c)];
+			}
+			start_cursor_delta += start_cursor_update;
 			
-			GL30.glUniform1ui(geometryUniformLocation,DONUT_GLYPH_ID);
-			glDrawArrays(GL_LINE_STRIP, 0, 3000);
+			if(start_cursor_delta > 0 || start_cursor_delta < -max_cursor_delta)
+				start_cursor_update *= -1;
+			
+
 			
 			GLFW.glfwSwapBuffers(runningWindow.getWindowId());
 		}
