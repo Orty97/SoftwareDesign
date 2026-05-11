@@ -1,149 +1,95 @@
 package front;
 
 import static org.lwjgl.glfw.GLFW.glfwInit;
-import static org.lwjgl.opengl.GL11.GL_LINE_STRIP;
-import static org.lwjgl.opengl.GL11.glDrawArrays;
-import static org.lwjgl.opengl.GL30.glBindVertexArray;
 
 import java.io.IOException;
 
-import org.joml.Vector3f;
+import org.joml.Vector2i;
 
 import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWVidMode;
-import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL20;
-import org.lwjgl.opengl.GL30;
 
+import front.rendering.Renderer;
 import front.rendering.Window;
 import front.rendering.fonts.Font;
 import front.rendering.fonts.FontParser;
-import front.util.FileReadHelper;
+import front.rendering.gui.Canvas;
+import front.rendering.gui.text.Text;
+import front.rendering.gui.text.TextBox;
 
 public class Launch {
+	
 	private static Window runningWindow;
-
-	public static int MONITOR_WIDTH;
-	public static int MONITOR_HEIGHT;
-
-	// TODO: TEMPORARY -> TO BE MOVED TO RENDERER WHEN CLEANING UP
-	private static int glyphFlatteningProgram;
-	private static int glyphFlatteningComputeShader;
-
-	private static int glyphEdgeSSBO;
-	private static int tesselationLevel = 10;
+	private static Renderer testRenderer;
 	
-	public static int DONUT_GLYPH_ID = 0;
+	public static Font font_TimesNewRoman;
+	public static Font font_Arial;
 	
-	static String testText = "";
+	private static Text targetText;
 	
-	static float start_cursor_delta = 0;
-	static float max_cursor_delta = 0;
-	
-	public static void main(String args[]) throws IOException {
-
+	static {
 		if (!glfwInit()) {
 			System.err.println("Failed to initialize GLFW, app will abort!");
 			System.exit(1);
 		}
-
-		long primaryMonitorPointer = GLFW.glfwGetPrimaryMonitor();
-		GLFWVidMode primaryMonitor = GLFWVidMode.create(primaryMonitorPointer);
-
-		MONITOR_WIDTH = primaryMonitor.width();
-		MONITOR_HEIGHT = primaryMonitor.height();
-
-		runningWindow = new LandingPage(500, 500, "GrowFlow-Unauthenticated");
+		runningWindow = new LandingPage(800,600, "GrowFlow-Unauthenticated");
+		testRenderer = new Renderer();
 		
-		GLFW.glfwMakeContextCurrent(runningWindow.getWindowId());
-		GL.createCapabilities();
-		
-		Font font = FontParser.parseFontFile("C:\\Windows\\Fonts\\calibri.ttf");
+		font_TimesNewRoman = FontParser.parseFontFile("C:\\Windows\\Fonts\\segoeui.ttf");
+		font_Arial = FontParser.parseFontFile("C:\\Windows\\Fonts\\arialbd.ttf");
+	}
 	
-		GLFW.glfwSetKeyCallback(runningWindow.getWindowId(),(window,key,scan,action,mods)->{
-			if(key >= GLFW.GLFW_KEY_A && key <= GLFW.GLFW_KEY_Z && action == GLFW.GLFW_PRESS) {
-				if(mods == GLFW.GLFW_MOD_SHIFT) {
-					testText += (char)(key - GLFW.GLFW_KEY_A + 'A');
-					max_cursor_delta += font.glyphAdvanceWidth[font.unicodeToGlyphIdMap.get((key - GLFW.GLFW_KEY_A + 'A'))];
-				}
-				else {
-					testText += (char)(key - GLFW.GLFW_KEY_A + 'a');
-					max_cursor_delta += font.glyphAdvanceWidth[font.unicodeToGlyphIdMap.get((key - GLFW.GLFW_KEY_A + 'a'))];
-				}
-		}
-		
-		if(key == GLFW.GLFW_KEY_SPACE && action == GLFW.GLFW_PRESS) {
-			testText+=(char)(' ');
+	public static void main(String args[]) throws IOException {
 			
-		}
+		Canvas titleCanvas =  new Canvas(runningWindow,new Vector2i(0,550),75,75,0);
+		TextBox titleBox = new TextBox(Launch.font_Arial,new Vector2i(0,0),new Vector2i(0,0),0);
+		titleBox.text.content = "GrowFlow-Unauthenticated";
+		titleCanvas.addElement(titleBox);		
+		runningWindow.windowCanvases.add(titleCanvas);
 		
-		if(key == GLFW.GLFW_KEY_BACKSPACE && action == GLFW.GLFW_PRESS) {
-			max_cursor_delta -= font.glyphAdvanceWidth[font.unicodeToGlyphIdMap.get((int)(testText.charAt(testText.length()-1)))];
-			testText = testText.substring(0,testText.length()-1);
-		}
+		Canvas UsernameLabelCanvas =  new Canvas(runningWindow,new Vector2i(0,350),75,75,0);
+		TextBox UsernameLabelText = new TextBox(Launch.font_Arial,new Vector2i(0,0),new Vector2i(0,0),0);
+		UsernameLabelText.text.content = "Username:";
+		UsernameLabelCanvas.addElement(UsernameLabelText);		
+		runningWindow.windowCanvases.add(UsernameLabelCanvas);
 		
-		if(key >= GLFW.GLFW_KEY_0 && key <= GLFW.GLFW_KEY_9 && action == GLFW.GLFW_PRESS) {
-			testText += (char)(key - GLFW.GLFW_KEY_0 + '0');
-		}		
-			
+		Canvas PasswordLabelCanvas =  new Canvas(runningWindow,new Vector2i(0,200),75,75,0);
+		TextBox PasswordLabelText = new TextBox(Launch.font_Arial,new Vector2i(0,0),new Vector2i(0,0),0);
+		PasswordLabelText.text.content = "Password:";
+		PasswordLabelCanvas.addElement(PasswordLabelText);		
+		runningWindow.windowCanvases.add(PasswordLabelCanvas);
+		
+		Canvas UsernameCanvas =  new Canvas(runningWindow,new Vector2i(0,300),75,75,0);
+		TextBox UsernameText = new TextBox(Launch.font_TimesNewRoman,new Vector2i(0,0),new Vector2i(0,0),0);
+		UsernameText.text.content = "";
+		UsernameCanvas.addElement(UsernameText);		
+		runningWindow.windowCanvases.add(UsernameCanvas);
+		
+		Canvas PasswordCanvas =  new Canvas(runningWindow,new Vector2i(0,125),75,75,0);
+		TextBox PasswordText = new TextBox(Launch.font_TimesNewRoman,new Vector2i(0,0),new Vector2i(0,0),0);
+		PasswordText.text.content = "";
+		PasswordCanvas.addElement(PasswordText);
+		runningWindow.windowCanvases.add(PasswordCanvas);
+		
+		targetText = UsernameText.text;
+		
+		GLFW.glfwSetKeyCallback(runningWindow.getWindowId(),(window,key,scan,action,mod)->{
+			if(key == GLFW.GLFW_KEY_ENTER && action == GLFW.GLFW_PRESS)
+				targetText = PasswordText.text;
+			if(key == GLFW.GLFW_KEY_BACKSPACE && action == GLFW.GLFW_PRESS)
+				if(targetText.content.length()!=0)
+					targetText.content = targetText.content.substring(0,targetText.content.length()-1);
 		});
-
-		int shaderProgram = GL20.glCreateProgram();
 		
-		int vertexShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
-		int fragmentShader = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
-
-		GL20.glShaderSource(vertexShader, FileReadHelper.loadShaderCode("res\\Text.vert"));
-		GL20.glCompileShader(vertexShader);
-
-		GL20.glShaderSource(fragmentShader, FileReadHelper.loadShaderCode("res\\Text.frag"));
-		GL20.glCompileShader(fragmentShader);
-		
-		GL20.glAttachShader(shaderProgram, vertexShader);
-		GL20.glAttachShader(shaderProgram, fragmentShader);
-
-		GL20.glLinkProgram(shaderProgram);
-		GL20.glValidateProgram(shaderProgram);
-		
-		int geometryUniformLocation = GL30.glGetUniformLocation(shaderProgram,"u_target_glyph");
-		int glyphPositionUniformLocation = GL30.glGetUniformLocation(shaderProgram,"glyph_position");
+		GLFW.glfwSetCharCallback(runningWindow.getWindowId(),(window,code_point)->{
+			if(code_point != ' ')
+				targetText.content += (char)code_point;
+		});
 		
 		
-		Vector3f cursor = new Vector3f(0,0,0);		
-
 		
-		float start_cursor_update = +20;
-		
-
 		while (runningWindow != null) {
 			GLFW.glfwPollEvents();
-			GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
-			
-			GL20.glUseProgram(shaderProgram);
-			
-			glBindVertexArray(0);
-			
-			cursor = new Vector3f(start_cursor_delta,0f,0f);
-			
-			for(char c : testText.toCharArray()) {
-				if(font.unicodeToGlyphMap.get((int)c) == null) {
-					cursor.x += font.glyphAdvanceWidth[font.unicodeToGlyphIdMap.get((int)c)];
-					continue;
-				}
-				GL30.glUniform3f(glyphPositionUniformLocation,cursor.x,cursor.y,cursor.z);
-				GL30.glUniform1ui(geometryUniformLocation,font.unicodeToGlyphMap.get((int)c));
-				glDrawArrays(GL_LINE_STRIP, 0, 3000);
-				cursor.x += font.glyphAdvanceWidth[font.unicodeToGlyphIdMap.get((int)c)];
-			}
-			start_cursor_delta += start_cursor_update;
-			
-			if(start_cursor_delta > 0 || start_cursor_delta < -max_cursor_delta)
-				start_cursor_update *= -1;
-			
-
-			
-			GLFW.glfwSwapBuffers(runningWindow.getWindowId());
+			testRenderer.renderWindow(runningWindow);
 		}
 	}
 }

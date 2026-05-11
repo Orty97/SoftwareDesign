@@ -1,81 +1,144 @@
 #version 430 core
 
-struct GlyphPoint {
-    vec2 pos;
-    uint flags;
-    uint pad0;
+struct Instance_r{
+    int instance_start_index;
+    int instance_count;
 };
 
-struct GlyphContour{
-    uint pointStart;
-    uint pointCount;
-    uint pad0;
-    uint pad1;
+struct Instance_s{
+    int geometry_index;
+    int transform_index;
 };
 
-struct GlyphEdge{
-	vec2 startPoint;
-	vec2 endPoint;
+struct Geometry_s{
+    int contour_start_index;
+    int contour_count;
+    int point_count;
 };
 
-struct Glyph {
-    uint pointStart;
-    uint pointCount;
-    uint contourStart;
-    uint contourCount;
+struct Contour_s{
+    int point_start_index;
+    int point_count;
 };
 
-layout(local_size_x = 256) in;
-
-layout(std430, binding = 0) buffer GlyphPoints {
-    GlyphPoint points[];
+struct Segment_s{
+    ivec2 on_1;
+    ivec2 off;
+    ivec2 on_2;
 };
 
-layout(std430, binding = 1) buffer GlyphContours {
-    GlyphContour contours[];
-};
+layout(std430, binding = 5) buffer Transforms {
+    mat4 transform_array[];
+}transforms;
 
-layout(std430, binding = 2) buffer Glyphs {
-    Glyph glyphs[];
-};
+layout(std430, binding = 4) buffer Glyphs{
+    ivec2 glyph_instance_indices[];
+}glyphs;
 
-layout(std430, binding = 3) buffer GlyphEdges{
-	GlyphEdge edges[];
-};
+layout(std430, binding = 3) buffer Instances{
+    Instance_s instance_structs[];
+}instances;
 
-uniform int tesselationLevel;
-uniform int glyphID;
-uniform int tripletCount;
+layout(std430, binding = 2) buffer Geometries{
+    Geometry_s geometry_structs[];
+}geometries;
+
+layout(std430, binding = 1) buffer Contours{
+    Contour_s contour_structs[];
+}contours;
+
+layout(std430, binding = 0) buffer Points {
+    ivec2 points_array[];
+} pts;
+
+uniform uint u_target_glyph;
+uniform vec3 glyph_position;
 
 void main(){
-	uint tripletID = gl_GlobalInvocationID.x;
-	
-	Glyph targetGlyph = glyphs[glyphID];
-	
-	uint pointID = targetGlyph.pointStart + tripletID * 2;
-	uint glyphEndPoint = targetGlyph.pointStart + targetGlyph.pointCount;
-	
-	if(pointID > glyphEndPoint) return;
-	
-	vec2 p0 = points[pointID + 0].pos;
-	vec2 p1 = points[pointID + 1].pos;
-	vec2 p2 = points[pointID + 2].pos;
-	
-	for(int s = 0; s < tesselationLevel; s++) {
-        float t0 = float(s) / float(tesselationLevel);
-        float t1 = float(s + 1) / float(tesselationLevel);
-        
-        float u0 = 1.0 - t0;
-        float u1 = 1.0 - t1;
 
-        vec2 pt0 = u0*u0*p0 + 2.0*u0*t0*p1 + t0*t0*p2;
-        vec2 pt1 = u1*u1*p0 + 2.0*u1*t1*p1 + t1*t1*p2;
-		
-        edges[tripletID * tesselationLevel + s].startPoint = pt0;
-        edges[tripletID * tesselationLevel + s].endPoint   = pt1;
-    }
+
 }
 
 
-
-
+//#version 430 core
+//
+//struct GlyphPoint {
+//    vec2 pos;
+//    uint flags;
+//    uint pad0;
+//};
+//
+//struct GlyphContour{
+//    uint pointStart;
+//    uint pointCount;
+//    uint pad0;
+//    uint pad1;
+//};
+//
+//struct GlyphEdge{
+//	vec2 startPoint;
+//	vec2 endPoint;
+//};
+//
+//struct Glyph {
+//    uint pointStart;
+//    uint pointCount;
+//    uint contourStart;
+//    uint contourCount;
+//};
+//
+//layout(local_size_x = 256) in;
+//
+//layout(std430, binding = 0) buffer GlyphPoints {
+//    GlyphPoint points[];
+//};
+//
+//layout(std430, binding = 1) buffer GlyphContours {
+//    GlyphContour contours[];
+//};
+//
+//layout(std430, binding = 2) buffer Glyphs {
+//    Glyph glyphs[];
+//};
+//
+//layout(std430, binding = 3) buffer GlyphEdges{
+//	GlyphEdge edges[];
+//};
+//
+//uniform int tesselationLevel;
+//uniform int glyphID;
+//uniform int tripletCount;
+//
+//void main(){
+//	uint tripletID = gl_GlobalInvocationID.x;
+//	
+//	Glyph targetGlyph = glyphs[glyphID];
+//	
+//	uint pointID = targetGlyph.pointStart + tripletID * 2;
+//	uint glyphEndPoint = targetGlyph.pointStart + targetGlyph.pointCount;
+//	
+//	if(pointID > glyphEndPoint) return;
+//	
+//	vec2 p0 = points[pointID + 0].pos;
+//	vec2 p1 = points[pointID + 1].pos;
+//	vec2 p2 = points[pointID + 2].pos;
+//	
+//	for(int s = 0; s < tesselationLevel; s++) {
+//        float t0 = float(s) / float(tesselationLevel);
+//        float t1 = float(s + 1) / float(tesselationLevel);
+//        
+//        float u0 = 1.0 - t0;
+//        float u1 = 1.0 - t1;
+//
+//        vec2 pt0 = u0*u0*p0 + 2.0*u0*t0*p1 + t0*t0*p2;
+//        vec2 pt1 = u1*u1*p0 + 2.0*u1*t1*p1 + t1*t1*p2;
+//		
+//        edges[tripletID * tesselationLevel + s].startPoint = pt0;
+//        edges[tripletID * tesselationLevel + s].endPoint   = pt1;
+//    }
+//}
+//
+//
+//
+//
+//

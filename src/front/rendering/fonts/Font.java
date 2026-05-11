@@ -8,6 +8,7 @@ import static org.lwjgl.opengl.GL30.glBindBufferBase;
 import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER;
 
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -15,18 +16,41 @@ import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 
 import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL30;
 
 import front.rendering.fonts.FontParser.GlyphInstance;
 import front.rendering.fonts.FontParser.GlyphInstanceRange;
+import front.util.FileReadHelper;
 
 public class Font {
+	
+	private static int FONT_COUNT = 0;
+	
+	private final int fontIndex;
+	private int shaderProgramId;
+	
+	private int targetGlyphUniformLocation;
+	private int glyphPositionUniformLocation;
+	private int textTransformUniformLocation;
+	
+	private FloatBuffer transformBuffer = BufferUtils.createFloatBuffer(16);
 	
 	public HashMap<Integer,Integer> unicodeToGlyphIdMap = new HashMap<Integer,Integer>();
 	public HashMap<Integer,Integer> unicodeToGlyphMap = new HashMap<Integer,Integer>();
 	public HashMap<Long,GlyphKernPair> glyphKernData;
+	
 	public int[] glyphAdvanceWidth;
 	
+	public final int pointsSSBO;
+	public final int contoursSSBO;
+	public final int geometriesSSBO;
+	public final int instancesSSBO;
+	public final int glyphsSSBO;
+	public final int transformsSSBO;
+	
 	public Font(Matrix3f font_ndc_proj,HashMap<Integer,GlyphInstanceRange> ranges, ArrayList<GlyphInstance> instances, HashMap<Long,GlyphKernPair> glyph_kern_data, int[] advance_width, HashMap<Integer,Integer> glyph_id_map) {
+		fontIndex = FONT_COUNT ++;
 		unicodeToGlyphIdMap = glyph_id_map;
 		glyphKernData = glyph_kern_data;
 		glyphAdvanceWidth = advance_width;
@@ -165,46 +189,46 @@ public class Font {
 			pointsBuffer.putInt(coordinate);
 		pointsBuffer.flip();
 		
-		int pointSSBO = glGenBuffers();
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointSSBO);
+		pointsSSBO = glGenBuffers();
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointsSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, pointsBuffer, GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointSSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0, pointsSSBO);
 		
 		ByteBuffer contoursBuffer = BufferUtils.createByteBuffer(Integer.BYTES * fontContours.size());
 		for(int meta_data : fontContours)
 			contoursBuffer.putInt(meta_data);
 		contoursBuffer.flip();
-		int contourSSBO = glGenBuffers();
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, contourSSBO);
+		contoursSSBO = glGenBuffers();
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, contoursSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, contoursBuffer, GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, contourSSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, contoursSSBO);
 				
 		ByteBuffer geometryBuffer = BufferUtils.createByteBuffer(Integer.BYTES * fontGeometries.size());
 		for(int meta_data : fontGeometries)
 			geometryBuffer.putInt(meta_data);
 		geometryBuffer.flip();
-		int geometrySSBO = glGenBuffers();
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, geometrySSBO);
+		geometriesSSBO = glGenBuffers();
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, geometriesSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, geometryBuffer, GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, geometrySSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, geometriesSSBO);
 				
 		ByteBuffer instancesBuffer = BufferUtils.createByteBuffer(Integer.BYTES * fontInstances.size());
 		for(int data : fontInstances)
 			instancesBuffer.putInt(data);
 		instancesBuffer.flip();
-		int instanceSSBO = glGenBuffers();
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, instanceSSBO);
+		instancesSSBO = glGenBuffers();
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, instancesSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, instancesBuffer, GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, instanceSSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, instancesSSBO);
 				
 		ByteBuffer glyphsBuffer = BufferUtils.createByteBuffer(Integer.BYTES * fontGlyphs.size());
 		for(int data : fontGlyphs)
 			glyphsBuffer.putInt(data);
 		glyphsBuffer.flip();
-		int glyphSSBO = glGenBuffers();
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, glyphSSBO);
+		glyphsSSBO = glGenBuffers();
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, glyphsSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, glyphsBuffer, GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, glyphSSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, glyphsSSBO);
 		
 		ByteBuffer transformsBuffer = BufferUtils.createByteBuffer(Float.BYTES * 16 * fontTransforms.size());
 		ByteBuffer matrixBuffer = BufferUtils.createByteBuffer(Float.BYTES * 16);
@@ -215,19 +239,63 @@ public class Font {
 		}
 		
 		transformsBuffer.flip();
-		int transformSSBO = glGenBuffers();
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, transformSSBO);
+		transformsSSBO = glGenBuffers();
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, transformsSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, transformsBuffer, GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, transformSSBO);	
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, transformsSSBO);	
 		
-		int gidH = unicodeToGlyphMap.get((int)'H');
-		int gide = unicodeToGlyphMap.get((int)'e');
-		int gidl = unicodeToGlyphMap.get((int)'l');
-		int gido = unicodeToGlyphMap.get((int)'o');
-		int gidW = unicodeToGlyphMap.get((int)'W');
+		loadShaderProgram();
 	}
 
-	public GlyphKernPair getGlyphPairKern(int glyph_1_id, int glyph_2_id) {
+	private void loadShaderProgram() {
+		shaderProgramId = GL20.glCreateProgram();
+		int vertexShader = GL20.glCreateShader(GL20.GL_VERTEX_SHADER);
+		int fragmentShader = GL20.glCreateShader(GL20.GL_FRAGMENT_SHADER);
+		
+		GL20.glShaderSource(vertexShader, FileReadHelper.loadShaderCode("res\\Text.vert"));
+		GL20.glCompileShader(vertexShader);
+
+		GL20.glShaderSource(fragmentShader, FileReadHelper.loadShaderCode("res\\Text.frag"));
+		GL20.glCompileShader(fragmentShader);
+		
+		GL20.glAttachShader(shaderProgramId, vertexShader);
+		GL20.glAttachShader(shaderProgramId, fragmentShader);
+
+		GL20.glLinkProgram(shaderProgramId);
+		GL20.glValidateProgram(shaderProgramId);
+				
+		targetGlyphUniformLocation = GL30.glGetUniformLocation(shaderProgramId,"u_target_glyph");
+		glyphPositionUniformLocation = GL30.glGetUniformLocation(shaderProgramId,"glyph_position");
+		textTransformUniformLocation = GL30.glGetUniformLocation(shaderProgramId,"text_transform");
+	}
+
+	public void useFontProgram() {
+		GL30.glUseProgram(shaderProgramId);
+	}
+	
+	public void stopUsingFontProgram() {
+		GL30.glUseProgram(0);
+	}
+	
+	public void setRenderTargetGlyph(int code_point) {
+		GL30.glUniform1ui(targetGlyphUniformLocation,unicodeToGlyphMap.get(code_point));
+	}
+	
+	public void setCursorRenderPosition(float cursor_position) {
+		GL30.glUniform3f(glyphPositionUniformLocation,cursor_position,0f,0f);
+	}
+	
+	public void setTextTransform(Matrix4f text_transform) {
+		transformBuffer.clear();
+		text_transform.get(transformBuffer);
+		GL30.glUniformMatrix4fv(textTransformUniformLocation,false,transformBuffer);
+	}
+	
+ 	public GlyphKernPair getGlyphPairKern(int glyph_1_id, int glyph_2_id) {
 		return glyphKernData.get(((long)glyph_1_id << 32) | (glyph_2_id & 0xFFFFFFFFL));
 	}
+
+ 	public int getFontIndex() {
+ 		return fontIndex;
+ 	}
 }
