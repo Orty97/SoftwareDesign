@@ -22,7 +22,7 @@ import front.rendering.fonts.tables.LOCA_Table;
 import front.rendering.fonts.tables.MAXP_Table;
 import front.rendering.fonts.tables.encodings.FORMAT_12_ENCODING_Table;
 import front.rendering.fonts.tables.encodings.FORMAT_4_ENCODING_Table;
-	
+@SuppressWarnings("unused")
 public class FontParser {
 	
 	public static final HashMap<Integer,GlyphInstanceRange> glyphInstanceRanges = new HashMap<>();
